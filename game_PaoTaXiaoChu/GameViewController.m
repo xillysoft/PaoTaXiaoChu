@@ -7,7 +7,7 @@
 //
 
 #import "GameViewController.h"
-#import "GameScene.h"
+#import "ZZWelcomeScene.h"
 
 @implementation GameViewController
 
@@ -15,7 +15,7 @@
     [super viewDidLoad];
 
     // Load the SKScene from 'GameScene.sks'
-    GameScene *scene = (GameScene *)[SKScene nodeWithFileNamed:@"GameScene"];
+    ZZWelcomeScene *scene = [[ZZWelcomeScene alloc] initWithSize:self.view.bounds.size];
     
     // Set the scale mode to scale to fit the window
     scene.scaleMode = SKSceneScaleModeAspectFill;
