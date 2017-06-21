@@ -14,13 +14,11 @@
 
 //class ZZMessageBox
 @interface ZZMessageBox : SKNode
-
+@property(nonatomic) NSString *title;
 @property(nonatomic, weak) id<ZZMesageBoxDataSource> dataSource;
 @property(nonatomic, weak) id<ZZMessageBoxDelegate> delegate;
 
--(instancetype)initWithScale:(CGFloat)scale title:(NSString *)title;
-
--(void)showIn:(SKScene *)scene;
+-(void)showIn:(SKNode *)node position:(CGPoint)position;
 
 @end
 

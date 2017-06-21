@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		611FFE931EF9571900C0D8B6 /* Utilities.m in Sources */ = {isa = PBXBuildFile; fileRef = 611FFE921EF9571900C0D8B6 /* Utilities.m */; };
 		612723241EEFD46B004080D9 /* ZZChooseLevelsScene.m in Sources */ = {isa = PBXBuildFile; fileRef = 612723231EEFD46B004080D9 /* ZZChooseLevelsScene.m */; };
 		612723271EF01F06004080D9 /* ZZMessageBox.m in Sources */ = {isa = PBXBuildFile; fileRef = 612723261EF01F06004080D9 /* ZZMessageBox.m */; };
 		6127232A1EF2C00A004080D9 /* ZZGameBoardScene.m in Sources */ = {isa = PBXBuildFile; fileRef = 612723291EF2C00A004080D9 /* ZZGameBoardScene.m */; };
@@ -207,6 +208,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		611FFE921EF9571900C0D8B6 /* Utilities.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Utilities.m; sourceTree = "<group>"; };
+		611FFE941EF9572400C0D8B6 /* Utilities.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Utilities.h; sourceTree = "<group>"; };
 		612723221EEFD46B004080D9 /* ZZChooseLevelsScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ZZChooseLevelsScene.h; sourceTree = "<group>"; };
 		612723231EEFD46B004080D9 /* ZZChooseLevelsScene.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ZZChooseLevelsScene.m; sourceTree = "<group>"; };
 		612723251EF01F06004080D9 /* ZZMessageBox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ZZMessageBox.h; sourceTree = "<group>"; };
@@ -446,6 +449,8 @@
 			children = (
 				6194C8E91EEF943F00A23808 /* Scenes */,
 				6194C7641EEF916100A23808 /* resources */,
+				611FFE941EF9572400C0D8B6 /* Utilities.h */,
+				611FFE921EF9571900C0D8B6 /* Utilities.m */,
 				6194C7491EEF7B7D00A23808 /* AppDelegate.h */,
 				6194C74A1EEF7B7D00A23808 /* AppDelegate.m */,
 				6194C7531EEF7B7D00A23808 /* GameViewController.h */,
@@ -1033,6 +1038,7 @@
 			files = (
 				6194C7551EEF7B7D00A23808 /* GameViewController.m in Sources */,
 				6194C8EC1EEF945700A23808 /* ZZWelcomeScene.m in Sources */,
+				611FFE931EF9571900C0D8B6 /* Utilities.m in Sources */,
 				6127232A1EF2C00A004080D9 /* ZZGameBoardScene.m in Sources */,
 				6194C74B1EEF7B7D00A23808 /* AppDelegate.m in Sources */,
 				6194C7481EEF7B7D00A23808 /* main.m in Sources */,

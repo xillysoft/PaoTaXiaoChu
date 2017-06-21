@@ -10,7 +10,7 @@
 #import "ZZChooseLevelsScene.h"
 
 @interface ZZWelcomeScene ()
-@property CGFloat scale;
+//@property CGFloat scale;
 @property BOOL musicOn;
 @property BOOL soundOn;
 @end
@@ -20,63 +20,74 @@
 
 -(void)didMoveToView:(SKView *)view
 {
-    self.musicOn = YES;
-    self.soundOn = YES;
+    self.musicOn = [[NSUserDefaults standardUserDefaults] boolForKey:@"SETTING_MUSIC_ON"];
+    self.soundOn = [[NSUserDefaults standardUserDefaults] boolForKey:@"SETTING_SOUND_ON"];
+    SKNode *node = [SKNode node]; //container node
     
-    CGSize size = self.size;
     SKSpriteNode *background = [SKSpriteNode spriteNodeWithImageNamed:@"BJ_0.png"];
-    self.scale = MAX(self.size.width/background.size.width, self.size.height/background.size.height);
-    background.xScale = self.scale; background.yScale = self.scale;
-    background.position = CGPointMake(size.width/2, size.height/2);
-    [self addChild:background];
+    //the scale between scene's real size and background picture's size
+    CGFloat scale = MAX(self.size.width/background.size.width, self.size.height/background.size.height);
+
+    background.anchorPoint = CGPointMake(0.5, 0.5);
+    background.position = CGPointZero;
+    [node addChild:background];
     
     SKSpriteNode *buttonStart = [SKSpriteNode spriteNodeWithImageNamed:@"UI_Btn_Start.png"];
     buttonStart.name = @"BUTTON_START";
-    buttonStart.xScale = self.scale; buttonStart.yScale = self.scale;
-    buttonStart.position = CGPointMake(size.width/2, size.height*0.4);
-    [self addChild:buttonStart];
+    buttonStart.position = CGPointMake(0, -50);
+    [node addChild:buttonStart];
     
-    SKSpriteNode *buttonMusic = [SKSpriteNode spriteNodeWithImageNamed:@"UI_Btn_Music_1.png"];
+    SKSpriteNode *buttonMusic = [SKSpriteNode spriteNodeWithImageNamed:self.musicOn ? @"UI_Btn_Music_1.png" : @"UI_Btn_Music_2"];
     buttonMusic.name = @"BUTTON_MUSIC";
     buttonMusic.anchorPoint = CGPointMake(0.5, 0.5);
-    buttonMusic.xScale = self.scale; buttonMusic.yScale = self.scale;
-    buttonMusic.position = CGPointMake(10+buttonMusic.size.width/2, 5+buttonMusic.size.height/2);
-    [self addChild:buttonMusic];
+    //positioned at lower-left corner of the scene
+    CGPoint position1 = CGPointMake(-self.size.width/scale/2+buttonMusic.size.width/2+50.0*scale, -self.size.height/scale/2+buttonMusic.size.height/2+30.0*scale);
+    buttonMusic.position = position1;
+    [node addChild:buttonMusic];
     
-    SKSpriteNode *buttonSound = [SKSpriteNode spriteNodeWithImageNamed:@"UI_Btn_Sound.png"];
+    SKSpriteNode *buttonSound = [SKSpriteNode spriteNodeWithImageNamed:self.soundOn ? @"UI_Btn_Sound.png" : @"UI_Btn_Sound_2.png"];
     buttonSound.name = @"BUTTON_SOUND";
     buttonSound.anchorPoint = CGPointMake(0.5, 0.5);
-    buttonSound.xScale = self.scale; buttonSound.yScale = self.scale;
-    buttonSound.position = CGPointMake(buttonMusic.position.x+buttonMusic.size.width/2+10+buttonSound.size.width/2, buttonMusic.position.y);
-    [self addChild:buttonSound];
+    buttonSound.position = CGPointMake(position1.x+buttonMusic.size.width/2+50+buttonSound.size.width/2, position1.y);
+    [node addChild:buttonSound];
+    
+    
+    self.anchorPoint = CGPointMake(0.5, 0.5);
+    node.position = CGPointZero;
+    [self addChild:node];
+    node.xScale = scale; node.yScale = scale;
 }
 
 -(void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
-    SKNode *node = [self nodeAtPoint:[[touches anyObject] locationInNode:self]];
-    if([node.name isEqualToString:@"BUTTON_START"]){
-        [node runAction:[SKAction scaleTo:1.2*self.scale duration:0.1]
+    SKNode *nodeTouched = [self nodeAtPoint:[[touches anyObject] locationInNode:self]];
+    if([nodeTouched.name isEqualToString:@"BUTTON_START"]){
+        SKAction *actionScale = [SKAction scaleBy:1.4 duration:0.1];
+        [nodeTouched runAction:actionScale
              completion:^{
                  ZZChooseLevelsScene *scene = [[ZZChooseLevelsScene alloc] initWithSize:self.size];
                  [self.view presentScene:scene transition:[SKTransition flipVerticalWithDuration:0.3]];
+                 [nodeTouched runAction:[actionScale reversedAction]];
              }];
-    }else if([node.name isEqualToString:@"BUTTON_MUSIC"]){
+    }else if([nodeTouched.name isEqualToString:@"BUTTON_MUSIC"]){
         self.musicOn = !self.musicOn;
         [[NSUserDefaults standardUserDefaults] setBool:self.musicOn forKey:@"SETTING_MUSIC_ON"];
         SKTexture *texture = [SKTexture textureWithImageNamed: self.musicOn ? @"UI_Btn_Music_1.png" : @"UI_Btn_Music_2.png"];
-        [node runAction:[SKAction sequence:@[
-                                             [SKAction scaleTo:0.8*self.scale duration:0.06],
+        SKAction *actionScale = [SKAction scaleBy:0.8 duration:0.06];
+        [nodeTouched runAction:[SKAction sequence:@[
+                                             actionScale,
                                              [SKAction setTexture:texture],
-                                             [SKAction scaleTo:1.0*self.scale duration:0.06],
+                                             [actionScale reversedAction],
                                              ]]];
-    }else if([node.name isEqualToString:@"BUTTON_SOUND"]){
+    }else if([nodeTouched.name isEqualToString:@"BUTTON_SOUND"]){
         SKTexture *texture = [SKTexture textureWithImageNamed: self.soundOn ? @"UI_Btn_Sound.png" : @"UI_Btn_Sound_2.png"];
         [[NSUserDefaults standardUserDefaults] setBool:self.soundOn forKey:@"SETTING_SOUND_ON"];
-        [node runAction:[SKAction sequence:@[
-                                             [SKAction scaleTo:0.8*self.scale duration:0.06],
-                                             [SKAction setTexture:texture],
-                                             [SKAction scaleTo:1.0*self.scale duration:0.06],
-                                             ]]];
+        SKAction *actionScale = [SKAction scaleBy:0.8 duration:0.06];
+        [nodeTouched runAction:[SKAction sequence:@[
+                                                    actionScale,
+                                                    [SKAction setTexture:texture],
+                                                    [actionScale reversedAction],
+                                                    ]]];
         
         self.soundOn = !self.soundOn;
     }
