@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 47;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -435,6 +435,7 @@
 				6194C7441EEF7B7D00A23808 /* Products */,
 			);
 			sourceTree = "<group>";
+			usesTabs = 1;
 		};
 		6194C7441EEF7B7D00A23808 /* Products */ = {
 			isa = PBXGroup;
@@ -814,7 +815,7 @@
 				};
 			};
 			buildConfigurationList = 6194C73E1EEF7B7D00A23808 /* Build configuration list for PBXProject "game_PaoTaXiaoChu" */;
-			compatibilityVersion = "Xcode 3.2";
+			compatibilityVersion = "Xcode 6.3";
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
