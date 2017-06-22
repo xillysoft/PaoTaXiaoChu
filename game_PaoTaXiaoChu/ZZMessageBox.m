@@ -64,19 +64,9 @@
     [container addChild:self];
     
     //ensure that the size of mind does not exceed the scene's visible region
-    CGFloat scale = ({
-        CGFloat scale1 = ({
-            CGFloat s = 1.0;
-            for(SKNode *node = container; node!=scene; node = [node parent]){
-                s *= node.xScale;
-            }
-            s;
-        });
-        CGSize size1 = [self calculateAccumulatedFrame].size;
-        MIN(size0.width*0.75/(size1.width*scale1), size0.height*0.75/(size1.height*scale1));
-    });
-    self.xScale = scale; self.yScale = scale;
-    
+    CGPoint halfSize = [scene convertPoint:CGPointMake(scene.size.width/2, scene.size.height/2) toNode:container];
+    CGFloat scale = MIN(1.0, halfSize.x*2*0.75/[self calculateAccumulatedFrame].size.width);
+    self.xScale = scale; self.yScale = scale;    
     [self runAction:[SKAction sequence:@[
                                          [SKAction scaleTo:0.0*scale duration:0.0],
                                          ({SKAction *s = [SKAction scaleTo:1.2*scale duration:0.4];
