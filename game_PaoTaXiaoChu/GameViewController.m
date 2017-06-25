@@ -16,10 +16,10 @@
     [super viewDidLoad];
 
 //    SKScene *scene = [[ZZWelcomeScene alloc] initWithSize:self.view.bounds.size];
-    
-    SKScene *scene = [[ZZGameBoardScene alloc] initWithSize:self.view.bounds.size];
 	
-    // Set the scale mode to scale to fit the window
+    SKScene *scene = [[ZZGameBoardScene alloc] initWithSize:self.view.bounds.size];
+
+	// Set the scale mode to scale to fit the window
     scene.scaleMode = SKSceneScaleModeAspectFill;
     
     SKView *skView = (SKView *)self.view;
