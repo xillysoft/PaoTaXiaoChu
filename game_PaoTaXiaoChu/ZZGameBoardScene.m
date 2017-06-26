@@ -29,7 +29,7 @@ typedef NS_ENUM(NSInteger, GameState){
 @property SKNode *turretBoard;
 @property NSUInteger numRows, numColumns;
 @property NSMutableArray<NSMutableArray<SKNode *> *> *guaiNodes;
-@property NSMutableArray<SKNode *> *paoNodes;
+@property NSMutableArray<SKSpriteNode *> *paoNodes;
 
 @property SKNode *movingPao;
 @property CGPoint movingPaoPosition0;
@@ -143,7 +143,7 @@ typedef NS_ENUM(NSInteger, GameState){
 		for(int column=0; column<_numColumns; column++){
 			//        NSInteger paoColor = arc4random_uniform(3);
 			NSInteger paoColor = [seq[column] integerValue];
-			NSInteger paoPower = arc4random_uniform(5); //TODO: change Pao's power when Guai is removed
+			NSInteger paoPower = 0;
 			NSArray<SKColor *> *paoColors = @[@"Red", @"Blue", @"Green"];
 			NSString *paoSpriteImageName = [NSString stringWithFormat:@"UI_Pao_%@_%@.png", paoColors[paoColor], @(paoPower+1)];
 			SKSpriteNode *paoSprite = [SKSpriteNode spriteNodeWithImageNamed:paoSpriteImageName];
@@ -209,21 +209,25 @@ typedef NS_ENUM(NSInteger, GameState){
 
 //parameter cannonIndex must be in range [0.._numColumns-1]
 //cannonPower in range [0..4]
--(void)_changeCannon:(NSInteger)cannonIndex power:(NSInteger)cannonPower
+-(void)_changePao:(NSInteger)column power:(NSInteger)paoPower completion:(void(^)(NSInteger column))completionBlock
 {
-	SKSpriteNode *cannonSprite = (SKSpriteNode *)_paoNodes[cannonIndex];
-	NSInteger cannonColor = [[cannonSprite.userData objectForKey:@"color"] integerValue];
+	SKSpriteNode *paoNode = (SKSpriteNode *)_paoNodes[column];
+	NSInteger cannonColor = [[paoNode.userData objectForKey:@"color"] integerValue];
 	NSArray<SKColor *> *paoColors = @[@"Red", @"Blue", @"Green"];
-	NSString *cannonSpriteImageName = [NSString stringWithFormat:@"UI_Pao_%@_%@.png", paoColors[cannonColor], @(cannonPower+1)];
+	NSString *cannonSpriteImageName = [NSString stringWithFormat:@"UI_Pao_%@_%@.png", paoColors[cannonColor], @(paoPower+1)];
 	SKTexture *cannonSpriteTexture = [SKTexture textureWithImageNamed:cannonSpriteImageName];
 	NSAssert(cannonSpriteTexture!=nil, @"Assertion failed: cannonSpriteTexture==nil! cannonSpriteImageName=%@", cannonSpriteImageName);
 //	cannonSprite.texture = [SKTexture textureWithImageNamed:cannonSpriteImageName];
-	[cannonSprite runAction:[SKAction sequence:@[
+	[paoNode runAction:[SKAction sequence:@[
 												 [SKAction colorizeWithColor:[SKColor whiteColor] colorBlendFactor:0.5 duration:0.1],
 												 [SKAction setTexture:cannonSpriteTexture],
 												 [SKAction colorizeWithColorBlendFactor:0.0 duration:0.1],
-												 ]]];
-	[cannonSprite.userData setValue:@(cannonPower) forKey:@"power"];
+												 ]]
+			  completion:^{
+				  if(completionBlock)
+					  completionBlock(column);
+			  }];
+	[paoNode.userData setValue:@(paoPower) forKey:@"power"];
 }
 
 
@@ -242,14 +246,14 @@ typedef NS_ENUM(NSInteger, GameState){
 	if(count0==nil || [count0 integerValue] != count){ //count changed
 		SKLabelNode *guaiNodeLabel = (SKLabelNode *)[guaiNode childNodeWithName:@"GUAI_LABEL"];
 		SKAction *changeTextAction = [SKAction runBlock:^{
-			guaiNodeLabel.text = [@(count==1 ? 0: count) description];
+//			guaiNodeLabel.text = [@(count==1 ? 0: count) description];
+			guaiNodeLabel.text = count==0 ? @"" : [@(count) description];
 			
 		}];
 		if(! animated){
-			guaiNodeLabel.text = [@(count) description];
 			[guaiNodeLabel runAction:changeTextAction];
 		}else{
-			SKAction *scaleAction = [SKAction scaleBy:1.4 duration:0.2];
+			SKAction *scaleAction = [SKAction scaleBy:1.6 duration:0.2];
 			[guaiNodeLabel runAction:[SKAction sequence:@[
 														  scaleAction,
 														  changeTextAction,
@@ -315,6 +319,9 @@ typedef NS_ENUM(NSInteger, GameState){
 					   completion:^(void){//guaiNodes[row][column] is filled with guaiSprite.
 						   [guaiNode.userData setObject:guaiSprite
 												 forKey:@"GUAI_SPRITE"]; //set data before Guai sprite really dropped down
+						   [self _setGuaiNode:guaiNode
+										count:1
+									 animated:YES];
 
 						   //recursively fill Guai sprites until row==numRows
 						   [self _generateRandomGuaisForColumn:column];
@@ -365,6 +372,7 @@ typedef NS_ENUM(NSInteger, GameState){
 		SKNode *guaiNode0 = _guaiNodes[row][0]; //guaiNodes[row][1..numColumns-1] are compared with guaiNodes[row][0]
 		SKSpriteNode *guaiSprite0 = [guaiNode0.userData objectForKey:@"GUAI_SPRITE"];
 		NSInteger guaiColor0 = [[guaiSprite0.userData objectForKey:@"color"] integerValue];
+		//test whether whole row has same color Guais
 		BOOL sameColor = YES;
 		for(NSInteger c=1; c<_numColumns; c++){
 			SKNode *guaiNode1 = _guaiNodes[row][c];
@@ -378,19 +386,21 @@ typedef NS_ENUM(NSInteger, GameState){
 		if(sameColor){ //merge this *row* of same color sprites into right-most sprites
 			self.gameState = GAMESTATE_REMOVING_SAME_COLOR_ROW;
 			
-			NSLog(@"--Row of same color sprites! row=%@", @(row));
 			//keep last Guai sprite of this row
 			//guaiNodes[row][0..numColumns-2] --merge--> guaiNodes[row][numColumns-1]
-			SKNode *guaiNodeKeeping = _guaiNodes[row][_numColumns-1];
+			NSInteger columnKeeping = arc4random_uniform((uint32_t)_numColumns);
+			SKNode *guaiNodeKeeping = _guaiNodes[row][columnKeeping];
 			SKSpriteNode *guaiSpriteKeeping =(SKSpriteNode *)[guaiNodeKeeping.userData objectForKey:@"GUAI_SPRITE"]; //keep this sprite on the _guaiNodes
 			//remove all Guai sprites (0.._numColumns-2) but last one
-			for(NSInteger column=0; column<_numColumns-1; column++){
+			for(NSInteger column=0; column<_numColumns; column++){
+				if(column == columnKeeping){ //skip column keepped
+					continue;
+				}
+				
 				SKNode *guaiNodeToRemove = _guaiNodes[row][column];
 				SKNode *guaiSpriteToRemove = [guaiNodeToRemove.userData objectForKey:@"GUAI_SPRITE"];
 				[guaiNodeToRemove.userData removeObjectForKey:@"GUAI_SPRITE"];
-				[self _setGuaiNode:guaiNodeToRemove
-							 count:1
-						  animated:NO];
+				
 				SKAction *actionHighlighting = [SKAction sequence:@[ //hightlighting sprites that are to be removed
 																  [SKAction colorizeWithColor:[SKColor whiteColor] colorBlendFactor:1.0 duration:0.4],
 																  [SKAction colorizeWithColor:[SKColor whiteColor] colorBlendFactor:0.0 duration:0.2],
@@ -412,9 +422,14 @@ typedef NS_ENUM(NSInteger, GameState){
 									   NSLog(@"--same color sprites removed for row=%@, now drop down...", @(row));
 									   [SKAction removeFromParent]; //remove guaiSpriteToRemove ([row][0..numColumns-2]) from parent node
 									   
-									   NSInteger count0 = [self _guaiNodeCount:guaiNodeKeeping];
+									   NSInteger countRemoving = [self _guaiNodeCount:guaiNodeToRemove];
+									   [self _setGuaiNode:guaiNodeToRemove //after Guai sprite is removed, the guaiNode's count reset to zero
+													count:0
+												 animated:NO];
+									   
+									   NSInteger countKeeping = [self _guaiNodeCount:guaiNodeKeeping];
 									   [self _setGuaiNode:guaiNodeKeeping
-													count:count0+1
+													count:countKeeping + countRemoving
 												 animated:YES];
 
 									   
@@ -453,10 +468,12 @@ typedef NS_ENUM(NSInteger, GameState){
 	NSLog(@"\t__dropDownBeginingAtRow:%@ onColumn:%@...", @(r), @(column));
 	self.gameState = GAMESTATE_DROPPING_DOWN_GUAIS;
 	if(r==_numRows-1){ //top-most row reached, remove [numRows-1][column] Guai sprites
-		SKNode *guaiNodeAtTopMostRow = _guaiNodes[_numRows-1][column];		
+		SKNode *guaiNodeAtTopMostRow = _guaiNodes[_numRows-1][column];
+//		SKSpriteNode *guaiSprite = (SKSpriteNode *)[guaiNodeAtTopMostRow.userData objectForKey:@"GUAI_SPRITE"];
+//		[guaiSprite removeFromParent]; //Note: don't remove guaiSprite, it's already dropped down to row below
 		[guaiNodeAtTopMostRow.userData removeObjectForKey:@"GUAI_SPRITE"];
 		[self _setGuaiNode:guaiNodeAtTopMostRow
-					 count:1
+					 count:0
 				  animated:NO];
 		
 		NSLog(@"--columnDidDroppedDown! column=%@, now generate random Guais for this column...\n\n", @(column));
@@ -469,9 +486,6 @@ typedef NS_ENUM(NSInteger, GameState){
 	SKNode *guaiNodeTo = _guaiNodes[r][column];
 	SKSpriteNode *guaiSpriteFrom = [guaiNodeFrom.userData objectForKey:@"GUAI_SPRITE"];
 	NSInteger count1 = [self _guaiNodeCount:guaiNodeFrom];
-	[self _setGuaiNode:guaiNodeTo
-				 count:count1
-			  animated:NO];
 	
 	[guaiNodeTo.userData setObject:guaiSpriteFrom forKey:@"GUAI_SPRITE"];
 	CGPoint position0 = [guaiNodeTo convertPoint:CGPointZero toNode:guaiSpriteFrom.parent];
@@ -484,6 +498,10 @@ typedef NS_ENUM(NSInteger, GameState){
 	[guaiSpriteFrom runAction:[SKAction moveTo:position0
 									  duration:duration]
 				   completion:^{ //dropped down: _guaiNodes[r+1][column]-->_guaiNodes[r][column]
+					   [self _setGuaiNode:guaiNodeTo
+									count:count1
+								 animated:NO];
+					   
 					   //recursive drop down next row
 					   [self _dropDownBeginingAtRow:r+1 onColumn:column];
 				   }
@@ -500,16 +518,16 @@ typedef NS_ENUM(NSInteger, GameState){
 	
 	//fire paoNode[0.._numColumns]
     for(NSUInteger column=0; column<_numColumns; column++) { //fire paoNode[0..numColumns-1]
-        SKNode *paoNode = _paoNodes[column];
+        SKSpriteNode *paoNode = _paoNodes[column];
         CGSize paoSize = [paoNode calculateAccumulatedFrame].size;
 		const NSInteger row = 0; //bottom-most row
 		SKNode *guaiNode = _guaiNodes[row][column];
-        SKSpriteNode *guaiSprite = (SKSpriteNode *)[guaiNode.userData objectForKey:@"GUAI_SPRITE"];
-        NSAssert(guaiSprite!=nil, @"Assertion Failed: there is no \"Guai\" at position[0][%@]", @(column));
+        SKSpriteNode *guaiSpriteAttacked = (SKSpriteNode *)[guaiNode.userData objectForKey:@"GUAI_SPRITE"];
+        NSAssert(guaiSpriteAttacked!=nil, @"Assertion Failed: there is no \"Guai\" at position[0][%@]", @(column));
         CGPoint p0 = [paoNode convertPoint:CGPointMake(0, paoSize.width/2) toNode:_container];
         CGPoint p1 = ({
-            CGSize guaiSize = [guaiSprite calculateAccumulatedFrame].size;
-            [guaiSprite convertPoint:CGPointMake(0, -guaiSize.height/2) toNode:_container];
+            CGSize guaiSize = [guaiSpriteAttacked calculateAccumulatedFrame].size;
+            [guaiSpriteAttacked convertPoint:CGPointMake(0, -guaiSize.height/2) toNode:_container];
         });
         
         NSInteger paoColor = [[paoNode.userData objectForKey:@"color"] integerValue];
@@ -527,23 +545,30 @@ typedef NS_ENUM(NSInteger, GameState){
         });
 //        [bulllet runAction:[SKAction repeatActionForever:[SKAction rotateByAngle:2*M_PI duration:0.3]]];
         [bulllet runAction:[SKAction moveTo:p1 duration:fireDuration]
-                completion:^{
+                completion:^{ //bullet shooted from Pao sprite collides with Guai sprite
                     [bulllet runAction:[SKAction sequence:@[//bullet disappear
                                                             [SKAction fadeOutWithDuration:0.05],
                                                             [SKAction removeFromParent],
                                                             ]]];
-                    NSAssert(guaiSprite.userData!=nil, @"guaiNode.userData==nil!");
-                    NSAssert([guaiSprite.userData objectForKey:@"color"]!=nil, @"[guaiNode.userData object[color]!=nil");
-                    NSInteger guaiColor = [[guaiSprite.userData objectForKey:@"color"] integerValue];
-                    if(paoColor == guaiColor){
+                    NSInteger guaiColor = [[guaiSpriteAttacked.userData objectForKey:@"color"] integerValue];
+					
+					NSInteger paoPower = [self _cannonPower:column];
+					const NSInteger MAX_CANNON_POWER = 5-1;
+					if(paoPower == MAX_CANNON_POWER){ //destroy the whole column of Guai sprites even Pao and Guai has no same color
+						//TODO: destroy whole column
+						[self _shootColumnWithLaserGun:column];
+						
+						[self _drainPaoPower:column fromPower:MAX_CANNON_POWER-1 toPower:0];
+					}else if(paoColor == guaiColor){ //shoot Guai sprite with same color
 						self.gameState = GAMESTATE_REMOVING_SHOOTED_GUAIS;
                         //remove this guai and generate new one
 //						SKNode *guaiNode = _guaiNodes[0][column];
+						
 						[guaiNode.userData removeObjectForKey:@"GUAI_SPRITE"]; //removed shooted Guai sprites from guai nodes (if with same color)
 						
 						//TODO: repeat guaiNode's "count" times when a guaiNode's sprite is shooted
-						[self _guaiShootedAtRow:row column:column color:guaiColor count:[self _guaiNodeCount:guaiNode]];
-						[guaiSprite runAction:[SKAction sequence:@[ //remove attacked Guai node
+						[self _guaiShootedAtRow:row column:column guaiColor:guaiColor count:[self _guaiNodeCount:guaiNode]]; //explosion effect
+						[guaiSpriteAttacked runAction:[SKAction sequence:@[ //remove attacked Guai node
 																	   [SKAction group:@[
 																						 [SKAction fadeOutWithDuration:0.4],
 																						 [SKAction moveByX:0 y:20 duration:0.4],
@@ -551,18 +576,33 @@ typedef NS_ENUM(NSInteger, GameState){
 																	   [SKAction removeFromParent],
 																	   ]]
 									   completion:^{ //guaiSpriteNode is removed from guaiNode parent
-										   NSInteger cannonPower = [self _cannonPower:column]+1;
-										   const NSInteger MAX_CANNON_POWER = 4;
-										   if(cannonPower > MAX_CANNON_POWER){
-											   //TODO: cannon shoot laser
-											   cannonPower = 0;
+										   [self _changePao:column
+													  power:paoPower+1
+												 completion:nil]; //Pao's power up!
+										   if(paoPower==MAX_CANNON_POWER-1){
+											   SKSpriteNode *paoGlowingSprite = [SKSpriteNode node];
+											   paoGlowingSprite.name = @"PAO_GLOWING_SPRITE";
+											   paoGlowingSprite.position = CGPointZero;
+											   //Note: add glowing sprite behind the Pao sprite, or else -touchesBegan:withEvent: will not hit-test the Pao sprite but the glowing sprite
+											   [paoNode addChild:paoGlowingSprite];
+											   
+											   const NSInteger numPaoGlowingAnimationTextures = 7;
+											   NSMutableArray<SKTexture *> *paoGlowingAnimationTextures = [NSMutableArray arrayWithCapacity:numPaoGlowingAnimationTextures];
+											   for(int k=0; k<numPaoGlowingAnimationTextures; k++){
+												   NSString *textureName = [NSString stringWithFormat:@"DH_PT_%@.png", @(k+1)];
+												   SKTexture *paoGlowingTexture = [SKTexture textureWithImageNamed:textureName];
+												   [paoGlowingAnimationTextures addObject:paoGlowingTexture];
+											   }
+											   SKAction *actionPaoGlowing = [SKAction animateWithTextures:paoGlowingAnimationTextures timePerFrame:1.0/20 resize:YES restore:NO];
+											   [paoGlowingSprite runAction:[SKAction repeatActionForever:actionPaoGlowing]];
 										   }
-										   [self _changeCannon:column power:cannonPower];
-										   
+
 										   [self _dropDownBeginingAtRow:0 onColumn:column];
 										   
 									   }];
-                    }
+					}else{ //Pao's power is not MAX_CANNON_POWER and Pao's color is different from Guai's color
+						
+					}
                 }
          ];
 		
@@ -577,7 +617,76 @@ typedef NS_ENUM(NSInteger, GameState){
     
 }
 
--(void)_guaiShootedAtRow:(NSInteger)row column:(NSInteger)column color:(NSInteger)guaiColor count:(NSInteger)guaiCount
+-(void)_drainPaoPower:(NSInteger)column fromPower:(NSInteger)power toPower:(NSInteger)paoPowerTo
+{
+	if(power != paoPowerTo){
+		[self _changePao:column
+				   power:power
+			  completion:^(NSInteger column){
+				  [self _drainPaoPower:column fromPower:power-1 toPower:paoPowerTo];
+			  }];
+	}
+}
+-(void)_shootColumnWithLaserGun:(NSInteger)column
+{
+	self.gameState = GAMESTATE_REMOVING_SHOOTED_GUAIS;
+	SKSpriteNode *paoNode = _paoNodes[column];
+	{//shoot laser
+		SKSpriteNode *laserSprite = [SKSpriteNode node];
+		laserSprite.anchorPoint = CGPointMake(0.5, 0);
+		laserSprite.position = [paoNode convertPoint:CGPointMake(0, 0) toNode:_container];
+		SKNode *topMostGuaiNode = _guaiNodes[_numRows-1][column];
+		const CGFloat laserHeight = CGPoint_distance(topMostGuaiNode.position, paoNode.position) + [topMostGuaiNode calculateAccumulatedFrame].size.height/2;
+		const CGFloat laserWidth = paoNode.size.width*1.5;
+		laserSprite.size = CGSizeMake(laserWidth, laserHeight);
+		const NSInteger numLaserAnimationTextures = 14;
+		NSMutableArray<SKTexture *> *laserAnimationTextures = [NSMutableArray arrayWithCapacity:numLaserAnimationTextures];
+		for(int k=0; k<numLaserAnimationTextures; k++){
+			NSString *textureName = [NSString stringWithFormat:@"DH_JG_%@.png", @(k+1)];
+			SKTexture *laserTexture = [SKTexture textureWithImageNamed:textureName];
+			[laserAnimationTextures addObject:laserTexture];
+		}
+		
+		SKAction *actionShootingLaser = [SKAction animateWithTextures:laserAnimationTextures
+														 timePerFrame:1.0/20
+															   resize:NO
+															  restore:NO];
+		[_container addChild:laserSprite];
+		[laserSprite runAction:actionShootingLaser
+					completion:^{
+						[laserSprite removeFromParent];
+						
+						SKSpriteNode *paoGlowingSprite = (SKSpriteNode *)[paoNode childNodeWithName:@"PAO_GLOWING_SPRITE"];
+						[paoGlowingSprite removeFromParent];
+					}];
+	}
+	
+	//remove all Guai sprites of the column, starting from row 0, recursively
+	[self _laserShootBeginningAtRow:0 onColumn:column];
+	
+}
+
+-(void)_laserShootBeginningAtRow:(NSInteger)r onColumn:(NSInteger)column
+{
+	if(r > _numRows-1){ //all sprite of this column destroyed
+		[self _generateRandomGuaisForColumn:column];
+	}else{
+		SKNode *guaiNode = _guaiNodes[r][column];
+		SKSpriteNode *guaiSprite = [guaiNode.userData objectForKey:@"GUAI_SPRITE"];
+		NSInteger guaiSpriteColor = [[guaiSprite.userData objectForKey:@"color"] integerValue];
+		NSInteger guaiCount = [[guaiNode.userData objectForKey:@"count"] integerValue];
+		[self _guaiShootedAtRow:r column:column guaiColor:guaiSpriteColor count:guaiCount];
+		
+		[guaiNode.userData removeObjectForKey:@"GUAI_SPRITE"];
+		[guaiSprite runAction:[SKAction fadeOutWithDuration:0.1]
+				   completion:^{
+					   [guaiSprite removeFromParent];
+					   [self _laserShootBeginningAtRow:r+1 onColumn:column]; //forward to next row
+				   }];
+	}
+}
+
+-(void)_guaiShootedAtRow:(NSInteger)row column:(NSInteger)column guaiColor:(NSInteger)guaiSpriteColor count:(NSInteger)guaiCount
 {
 	SKNode *guaiNode = _guaiNodes[row][column];
 	CGSize guaiNodeSize = [guaiNode calculateAccumulatedFrame].size;
@@ -587,24 +696,23 @@ typedef NS_ENUM(NSInteger, GameState){
 	[_container addChild:emitter];
 	
 	NSArray<NSString *> *guaiMind = @[@"UI_Mind_Guai_2.png", @"UI_Mind_Guai_1.png", @"UI_Mind_Guai_3.png"];
-	SKTexture *guaiTexture = [SKTexture textureWithImageNamed:guaiMind[guaiColor]];
+	SKTexture *guaiTexture = [SKTexture textureWithImageNamed:guaiMind[guaiSpriteColor]];
 	emitter.particleTexture = guaiTexture;
-	emitter.particleSize = CGSizeMake(guaiTexture.size.width*0.75, guaiTexture.size.height*0.75);
+	emitter.particleSize = CGSizeMake(guaiTexture.size.width*0.7, guaiTexture.size.height*0.7);
 	emitter.numParticlesToEmit = guaiCount*10;
 	emitter.particleBirthRate = emitter.numParticlesToEmit/0.1;
-	emitter.particleSpeed = 400.0;
-	const CGFloat distance = MAX(guaiNodeSize.width, guaiNodeSize.height)*3.0;
+	emitter.particleSpeed = 500.0;
+	const CGFloat distance = MAX(guaiNodeSize.width, guaiNodeSize.height)*2.0;
 	emitter.particleLifetime = distance/emitter.particleSpeed; //t=s/v
-//	emitter.particleAlphaSpeed = -1/emitter.particleLifetime;
-	emitter.particleAlphaSequence = [[SKKeyframeSequence alloc] initWithKeyframeValues:@[@(0.7), @(1.0), @(0.5), @(0.2), @(0.0)]
-																				 times:@[@(0.0), @(0.5), @(0.7), @(0.9), @(1.0)]];
-	emitter.particleScaleSequence = [[SKKeyframeSequence alloc] initWithKeyframeValues:@[@(0.0), @(1.0), @(0.0)]
-																				 times:@[@(0.0), @(0.2), @(1.0)]];
+	emitter.particleAlphaSequence = [[SKKeyframeSequence alloc] initWithKeyframeValues:@[@(1.0), @(0.5), @(0.0)]
+																				 times:@[@(0.0), @(0.7), @(1.0)]];
+	emitter.particleScaleSequence = [[SKKeyframeSequence alloc] initWithKeyframeValues:@[@(0.5), @(1.0), @(0.0)]
+																				 times:@[@(0.0), @(0.3), @(1.0)]];
 	emitter.emissionAngle = M_PI_2;
 	emitter.emissionAngleRange = 2*M_PI;
 	emitter.particlePositionRange = CGVectorMake(guaiNodeSize.width, guaiNodeSize.height);
 	[emitter runAction:[SKAction sequence:@[
-											[SKAction waitForDuration:emitter.numParticlesToEmit/emitter.particleBirthRate],
+											[SKAction waitForDuration:emitter.numParticlesToEmit/emitter.particleBirthRate+emitter.particleLifetime],
 											[SKAction removeFromParent]
 											]]];
 }
@@ -613,13 +721,10 @@ typedef NS_ENUM(NSInteger, GameState){
 {
 	SKNode *node = [self nodeAtPoint:[[touches anyObject] locationInNode:self]];
 	if([node.name isEqualToString:@"BUTTON_PAUSE"]){ //DEBUG
-		[self __debugGuaiSprites];
-		[self __debugPrintPaoSprites];
-		NSLog(@"--------");
 		return;
 	}
 	
-	if(self.gameState != GAMESTATE_GUAI_GENERATED){
+	if(self.gameState != GAMESTATE_GUAI_GENERATED){//user interaction enabled only when .gameState==GAUI_GENERATED
 		return ;
 	}
 	
@@ -632,12 +737,12 @@ typedef NS_ENUM(NSInteger, GameState){
 		_movingPao = paoNode;
 		_movingPaoPosition0 = paoNode.position;
 		_touchedLocation = location;
-		paoNode.color = [SKColor lightGrayColor];
-		[paoNode runAction:[SKAction repeatActionForever:[SKAction sequence:@[
-																			  [SKAction colorizeWithColorBlendFactor:0.5 duration:0.4],
-																			  [SKAction colorizeWithColorBlendFactor:0.0 duration:0.4],
-																			  ]]]
-		 withKey:@"CHANGE_PAO_SPRITE_COLOR"];
+	}else if([nodeTouched.name isEqualToString:@"PAO_GLOWING_SPRITE"]){
+		SKSpriteNode *paoNode = (SKSpriteNode *)nodeTouched.parent;
+		NSAssert([paoNode.name isEqualToString:@"PAO_SPRITE"], @"Assertion failed in touchesBegan:withEvent:! glowingNode's parent is not Pao node");
+		_movingPao = paoNode;
+		_movingPaoPosition0 = paoNode.position;
+		_touchedLocation = location;
 	}
 	
 }
@@ -665,8 +770,6 @@ typedef NS_ENUM(NSInteger, GameState){
 	}
 	
 	if(_movingPao != nil){
-		UITouch *touch = [touches anyObject];
-		SKNode *nodeTouched = [self nodeAtPoint:[touch locationInNode:self]];
 		NSInteger index = ({
 			NSInteger j = -1;
 			for(int k=0; k<_numColumns; k++){
@@ -677,32 +780,34 @@ typedef NS_ENUM(NSInteger, GameState){
 			}
 			j;
 		});
-		BOOL swaped = NO;
+		BOOL paoSwapped = NO;
+		const CGFloat movingSpeed = 600;
 		for(NSInteger i=0; i<_numColumns; i++){
 			CGPoint p0 = _movingPao.position;
-			SKNode *paoNode1 = _paoNodes[i];
+			SKNode *paoNodeToSwap = _paoNodes[i];
 			if(i != index){
-				CGRect frame1 = [paoNode1 calculateAccumulatedFrame];
-				if(CGRectContainsPoint(frame1, p0)){
-					CGFloat duration = 0.2;
-					[_movingPao runAction:[SKAction moveTo:paoNode1.position duration:duration]];
-					[paoNode1 runAction:[SKAction moveTo:_movingPaoPosition0 duration:duration]
+				CGRect frameToSwap = [paoNodeToSwap calculateAccumulatedFrame];
+				if(CGRectContainsPoint(frameToSwap, p0)){ //_movingPao intersects with another cannon sprite
+					CGFloat duration1 = CGPoint_distance(_movingPao.position, paoNodeToSwap.position)/movingSpeed;
+					CGFloat duration2 = CGPoint_distance(_movingPaoPosition0, paoNodeToSwap.position)/movingSpeed;
+					[_movingPao runAction:[SKAction moveTo:paoNodeToSwap.position duration:duration1]];
+					[paoNodeToSwap runAction:[SKAction moveTo:_movingPaoPosition0 duration:duration2]
 					 completion:^{
 						 [self _firePaos];
 					 }];
 					
 					//swap papNodes[i]<-->paoNodes[j]
 					
-					SKNode *t = _paoNodes[i];
+					SKSpriteNode *t = _paoNodes[i];
 					_paoNodes[i] = _paoNodes[index];
 					_paoNodes[index] = t;
-					swaped = YES;
+					paoSwapped = YES;
 				}
 			}
 		}
-		if(! swaped){
+		if(! paoSwapped){
 //			_movingPao.position = _movingPaoPosition0;
-			[_movingPao runAction:[SKAction moveTo:_movingPaoPosition0 duration:0.4]
+			[_movingPao runAction:[SKAction moveTo:_movingPaoPosition0 duration:(CGPoint_distance(_movingPao.position, _movingPaoPosition0)/movingSpeed)] //move back to original position
 					   completion:^{
 						   [self _firePaos];
 					   }];
